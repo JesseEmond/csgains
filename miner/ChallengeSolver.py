@@ -1,5 +1,5 @@
 from coinslib import MT64, seed_from_hash
-from cpp_solvers import solve_sorted_list
+from cpp_solvers import solve_sorted_list, solve_reverse_sorted_list
 import hashlib
 import random
 import time
@@ -28,10 +28,8 @@ class SortedListSolver(ChallengeSolver):
 
     def solve(self, parameters, hash_prefix, previous_hash):
         nb_elements = parameters['nb_elements']
-
         nonce = 0#random.randint(0, 99999999)
-
-        n = solve_sorted_list(hash_prefix, previous_hash, nb_elements)
+        nonce = solve_sorted_list(hash_prefix, previous_hash, nb_elements)
 
         while True:
             self.feed_prng(previous_hash, nonce)
@@ -72,9 +70,7 @@ class ReverseSortedListSolver(ChallengeSolver):
         nb_elements = parameters['nb_elements']
 
         nonce = 0#random.randint(0, 99999999)
-
-        #TODO replace
-        n = solve_sorted_list(hash_prefix, previous_hash, nb_elements)
+        nonce = solve_reverse_sorted_list(hash_prefix, previous_hash, nb_elements)
 
         while True:
             self.feed_prng(previous_hash, nonce)

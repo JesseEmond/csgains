@@ -7,6 +7,7 @@
 class MT64 {
 public:
 	using seed_t = unsigned long long int;
+	using value_t = seed_t;
 
 private:
 	enum {
@@ -26,7 +27,7 @@ private:
 		LOWER_MASK = 0x7fffffff,
 		UPPER_MASK = 0xffffffff80000000ULL
 	};
-	using state_value_t = unsigned long long int;
+	using state_value_t = value_t;
 	using state_t = std::array<state_value_t, N>;
 
 	state_t state;

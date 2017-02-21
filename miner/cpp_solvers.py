@@ -3,7 +3,13 @@ import ctypes
 lib = cdll.LoadLibrary('./libsolvers.so')
 
 def solve_sorted_list(target_prefix, previous_hash, nb_elements):
-    return lib.solve_sorted_list(target_prefix.encode('ascii'),
+    return lib.solve_list_sort(target_prefix.encode('ascii'),
                                  previous_hash.encode('ascii'),
-                                 nb_elements)
+                                 nb_elements,
+                                 True)
 
+def solve_reverse_sorted_list(target_prefix, previous_hash, nb_elements):
+    return lib.solve_list_sort(target_prefix.encode('ascii'),
+                                 previous_hash.encode('ascii'),
+                                 nb_elements,
+                                 False)
