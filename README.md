@@ -1,0 +1,2 @@
+# csgains
+CSCoins miner.
