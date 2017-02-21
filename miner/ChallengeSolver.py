@@ -1,11 +1,14 @@
 from coinslib import MT64, seed_from_hash
 import hashlib
 import random
+import time
 
 class ChallengeSolver:
     def __init__(self, challenge_name):
         self.challenge_name = challenge_name
         self.mt = None
+        self.attempts = 0
+        self.last_display_time = time.clock()
 
     def feed_prng(self, previous_hash, nonce):
         hasher = hashlib.sha256()
@@ -17,7 +20,6 @@ class ChallengeSolver:
 
     def solve(self, parameters, hash_prefix, previous_hash):
         pass
-
 
 class SortedListSolver(ChallengeSolver):
     def __init__(self):
@@ -52,6 +54,12 @@ class SortedListSolver(ChallengeSolver):
 
             nonce = random.randint(0, 99999999)
 
+            self.attempts += 1
+            if time.clock() - self.last_display_time >= 1:
+                print("speed: %d/s" % self.attempts)
+                self.attempts = 0
+                self.last_display_time = time.clock()
+
 
 class ReverseSortedListSolver(ChallengeSolver):
     def __init__(self):
@@ -85,3 +93,9 @@ class ReverseSortedListSolver(ChallengeSolver):
                 return solution_hash, nonce
 
             nonce = random.randint(0, 99999999)
+
+            self.attempts += 1
+            if time.clock() - self.last_display_time >= 1:
+                print("speed: %d/s" % self.attempts)
+                self.attempts = 0
+                self.last_display_time = time.clock()
