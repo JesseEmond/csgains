@@ -1,4 +1,5 @@
 from coinslib import MT64, seed_from_hash
+from cpp_solvers import solve_sorted_list
 import hashlib
 import random
 import time
@@ -29,6 +30,8 @@ class SortedListSolver(ChallengeSolver):
         nb_elements = parameters['nb_elements']
 
         nonce = random.randint(0, 99999999)
+
+        solve_sorted_list()
 
         while True:
             self.feed_prng(previous_hash, nonce)
