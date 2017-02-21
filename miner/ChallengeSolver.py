@@ -13,6 +13,8 @@ class ChallengeSolver:
 
     def feed_prng(self, previous_hash, nonce):
         hasher = hashlib.sha256()
+        print("To hash: %s" % "{0}{1}".format(previous_hash, nonce).encode("ascii"))
+        1/0 # TODO REMOVE
         hasher.update("{0}{1}".format(previous_hash, nonce).encode("ascii"))
         seed_hash = hasher.hexdigest()
 
@@ -29,9 +31,9 @@ class SortedListSolver(ChallengeSolver):
     def solve(self, parameters, hash_prefix, previous_hash):
         nb_elements = parameters['nb_elements']
 
-        nonce = random.randint(0, 99999999)
+        nonce = 0#random.randint(0, 99999999)
 
-        solve_sorted_list()
+        n = solve_sorted_list(hash_prefix, previous_hash, nb_elements)
 
         while True:
             self.feed_prng(previous_hash, nonce)
@@ -71,7 +73,10 @@ class ReverseSortedListSolver(ChallengeSolver):
     def solve(self, parameters, hash_prefix, previous_hash):
         nb_elements = parameters['nb_elements']
 
-        nonce = random.randint(0, 99999999)
+        nonce = 0#random.randint(0, 99999999)
+
+        #TODO replace
+        n = solve_sorted_list(hash_prefix, previous_hash, nb_elements)
 
         while True:
             self.feed_prng(previous_hash, nonce)
