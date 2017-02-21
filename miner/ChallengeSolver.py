@@ -13,11 +13,8 @@ class ChallengeSolver:
 
     def feed_prng(self, previous_hash, nonce):
         hasher = hashlib.sha256()
-        print("To hash: %s" % "{0}{1}".format(previous_hash, nonce).encode("ascii"))
         hasher.update("{0}{1}".format(previous_hash, nonce).encode("ascii"))
         seed_hash = hasher.hexdigest()
-        print("Hash result: %s" % seed_hash)
-        1/0 # TODO REMOVE
 
         seed = seed_from_hash(seed_hash)
         self.mt = MT64(seed)
