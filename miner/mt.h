@@ -33,15 +33,6 @@ private:
 	state_t state;
 	int index;
 
-	static state_t seed(const seed_t &seed) {
-		state_t state;
-		state[0] = seed;
-		for (int i = 1; i < N; ++i) {
-			state[i] = F * (state[i-1] ^ (state[i-1] >> (W-2))) + i;
-		}
-		return state;
-	}
-
 	void twist() {
 		for (int i = 0; i < N; ++i) {
 			auto x = (state[i] & UPPER_MASK) +
@@ -57,7 +48,14 @@ private:
 	}
 
 public:
-	MT64(const seed_t &seed) : state(MT64::seed(seed)), index(N) {}
+	MT64() : state{}, index{N} {}
+
+	state_t seed(const seed_t &seed) {
+		state[0] = seed;
+		for (int i = 1; i < N; ++i) {
+			state[i] = F * (state[i-1] ^ (state[i-1] >> (W-2))) + i;
+		}
+	}
 
 	state_value_t next() {
 		if (index == N) twist();

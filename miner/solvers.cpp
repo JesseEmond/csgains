@@ -43,16 +43,38 @@ MT64::seed_t seed_from_hash(const string& hash) {
 	return swap_endian(seed);
 }
 
-MT64 feed_prng(const char* previous, int nonce) {
+MT64 feed_prng(MT64& mt, const char* previous, int nonce) {
 	stringstream ss;
 	ss << previous << nonce;
 	string hash = sha256(ss.str());
 	auto seed = seed_from_hash(hash);
-	return MT64(seed);
+	mt.seed(seed);
+}
+bool test_list_sort_nonce(MT64& mt, const string& target, const char* previous_hash, int nb_elements, bool asc, int nonce) {
+	feed_prng(mt, previous_hash, nonce);
+	vector<MT64::value_t> values(nb_elements, 0);
+	generate(begin(values), end(values), [&] { return mt.next(); });
+
+	if (asc) sort(begin(values), end(values));
+	else sort(rbegin(values), rend(values));
+
+	stringstream ss;
+	copy(begin(values), end(values), ostream_iterator<MT64::value_t>(ss));
+	auto hash = sha256(ss.str());
+	return hash.compare(0, target.size(), target) == 0;
 }
 
 
 extern "C" {
+	void unit_test() {
+		MT64 mt;
+		if (!test_list_sort_nonce(mt, "433e", "9cc5a925757e626b1febbdf62c1643d5bab6473c0a960ad823ab742e18560977", 100, false, 15236)) {
+			class unittest_failed_list_sort{};
+			throw unittest_failed_list_sort{};
+		}
+
+		cout << "Unit tests passed." << endl;
+	}
 	int solve_list_sort(const char* target_prefix,
 			const char* previous_hash,
 			int nb_elements,
@@ -61,20 +83,11 @@ extern "C" {
 		auto last = chrono::steady_clock::now();
 
 		int nonce = 0;
+		MT64 mt;
 		string target(target_prefix);
 		for (int nonce = 0; nonce < 9999999; ++nonce) {
-			auto mt = feed_prng(previous_hash, nonce);
-			vector<MT64::value_t> values(nb_elements, 0);
-			generate(begin(values), end(values),
-					[&] { return mt.next(); });
-			if (asc) sort(begin(values), end(values));
-			else sort(rbegin(values), rend(values));
-
-			stringstream ss;
-			copy(begin(values), end(values), ostream_iterator<MT64::value_t>(ss));
-			auto hash = sha256(ss.str());
-			if (hash.compare(0, target.size(), target) == 0) {
-				cout << "YES!!!" << endl;
+			if (test_list_sort_nonce(mt, target, previous_hash, nb_elements, asc, nonce)) {
+				cout << "YAYYYY!!" << endl;
 				return nonce;
 			}
 
