@@ -78,10 +78,12 @@ word_t maj(word_t x, word_t y, word_t z){
 	return (x&y)^(x&z)^(y&z);
 }
 
-word_t rotr(word_t x, std::size_t n){
-	assert(n < 32);
-	return mask_32bit((x>>n)|(x<<(32-n)));
-}
+struct {
+	word_t operator()(word_t x, std::size_t n) {
+		assert(n < 32);
+		return mask_32bit((x>>n)|(x<<(32-n)));
+	}
+} rotr;
 
 word_t bsig0(word_t x){
 	return rotr(x, 2)^rotr(x, 13)^rotr(x, 22);
