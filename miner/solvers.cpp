@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <iterator>
 #include <chrono>
+#include <future>
+#include <thread>
 
 #include "picosha2.h"
 #include "mt.h"
@@ -64,6 +66,42 @@ bool test_list_sort_nonce(MT64& mt, const string& target, const char* previous_h
 	return hash.compare(0, target.size(), target) == 0;
 }
 
+template <class TaskCreator>
+int multithreaded_task(int start, int max_tries, TaskCreator task_creator) {
+	const auto n_threads = max(thread::hardware_concurrency(), 1u);
+	cout << "Launching " << n_threads << " threads." << endl;
+	vector<future<int>> threads;
+	threads.reserve(n_threads);
+	const auto before = chrono::steady_clock::now();
+	const int workload = max_tries / n_threads;
+	for (int i = 0; i < n_threads; ++i) {
+		const int my_start = start + workload * i;
+		const int my_end = my_start + workload;
+		threads.push_back(async(launch::async,
+					[i, my_start, my_end, workload, &task_creator] {
+					auto task = task_creator();
+					for (int nonce = my_start; nonce < my_end; ++nonce) {
+						if (task(nonce)) {
+							cout << "Thread " << i << " found nonce " << nonce << endl;
+							return nonce;
+						}
+					}
+					return -workload;
+					}));
+	}
+	vector<int> results;
+	transform(begin(threads), end(threads), back_inserter(results), [] (auto &thread) { return thread.get(); });
+	const auto found_nonce = *max_element(begin(results), end(results));
+
+	const auto after = chrono::steady_clock::now();
+	const auto diff = chrono::duration_cast<chrono::duration<float>>(after - before);
+	int explored = 0;
+	for (int i = 0; i < n_threads; ++i) explored += results[i] >= 0 ? results[i] - workload * i - start : -results[i];
+	cout << "speed: " << static_cast<double>(explored) / diff.count() << "/s" << endl;
+
+	return found_nonce;
+}
+
 
 extern "C" {
 	void unit_test() {
@@ -75,24 +113,32 @@ extern "C" {
 
 		cout << "Unit tests passed." << endl;
 	}
+
 	int solve_list_sort(const char* target_prefix,
 			const char* previous_hash,
 			int nb_elements,
 			bool asc) {
-		MT64 mt;
 		string target(target_prefix);
-		for (int nonce = 0; nonce < 9999999; ++nonce) {
-			int attempts = 0;
-			const auto start = chrono::steady_clock::now();
-			for (; attempts < 40000; ++attempts, ++nonce) {
-				if (test_list_sort_nonce(mt, target, previous_hash, nb_elements, asc, nonce)) {
-					cout << "Found matching nonce: " << nonce << endl;
-					return nonce;
-				}
+		struct sort_task {
+			string target;
+			const char* previous_hash;
+			int nb_elements;
+			bool asc;
+			MT64 mt;
+
+			sort_task(const string& target, const char* previous_hash, int nb_elements, bool asc)
+				: target{target}, previous_hash{previous_hash}, nb_elements{nb_elements}, asc{asc}, mt{} {}
+
+			bool operator()(int nonce) {
+				return test_list_sort_nonce(mt, target, previous_hash, nb_elements, asc, nonce);
 			}
-			const auto stop = chrono::steady_clock::now();
-			const auto diff = chrono::duration_cast<chrono::duration<float>>(stop - start);
-			cout << "speed: " << static_cast<double>(attempts) / diff.count() << "/s" << endl;
+		};
+
+		const int step_size = 150000;
+		for (int nonce = 0; nonce < 99999999; nonce += step_size) {
+			int found_nonce = multithreaded_task(nonce, step_size,
+					[&] { return sort_task{target, previous_hash, nb_elements, asc}; });
+			if (found_nonce >= 0) return found_nonce;
 		}
 		return 0;
 	}
