@@ -87,13 +87,13 @@ extern "C" {
 		string target(target_prefix);
 		for (int nonce = 0; nonce < 9999999; ++nonce) {
 			if (test_list_sort_nonce(mt, target, previous_hash, nb_elements, asc, nonce)) {
-				cout << "YAYYYY!!" << endl;
+				cout << "Found matching nonce: " << nonce << endl;
 				return nonce;
 			}
 
 			++attempts;
-			if (attempts % 10 == 0 && chrono::steady_clock::now() - last > 1s) {
-				cout << "speed: " << attempts << "/s" << endl;
+			if (attempts % 10 == 0 && chrono::steady_clock::now() - last > 5s) {
+				cout << "speed: " << attempts/5.0 << "/s" << endl;
 				attempts = 0;
 				last = chrono::steady_clock::now();
 			}

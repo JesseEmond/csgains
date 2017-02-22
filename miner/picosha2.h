@@ -38,13 +38,17 @@ typedef unsigned char byte_t;
 
 namespace detail 
 {
-byte_t mask_8bit(byte_t x){
-	return x&0xff;
-}
+struct {
+	byte_t operator()(byte_t x) {
+		return x&0xff;
+	}
+} mask_8bit;
 
-word_t mask_32bit(word_t x){
-	return x&0xffffffff;
-}
+struct {
+	word_t operator()(word_t x) {
+		return x&0xffffffff;
+	}
+} mask_32bit;
 
 const word_t add_constant[64] = {
 	0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,

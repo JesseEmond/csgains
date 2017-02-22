@@ -48,9 +48,8 @@ private:
 	}
 
 public:
-	MT64() : state{}, index{N} {}
-
 	state_t seed(const seed_t &seed) {
+		index = N;
 		state[0] = seed;
 		for (int i = 1; i < N; ++i) {
 			state[i] = F * (state[i-1] ^ (state[i-1] >> (W-2))) + i;
