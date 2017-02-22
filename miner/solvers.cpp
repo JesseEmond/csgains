@@ -79,25 +79,21 @@ extern "C" {
 			const char* previous_hash,
 			int nb_elements,
 			bool asc) {
-		int attempts = 0;
-		auto last = chrono::steady_clock::now();
-
-		int nonce = 0;
 		MT64 mt;
 		string target(target_prefix);
 		for (int nonce = 0; nonce < 9999999; ++nonce) {
-			if (test_list_sort_nonce(mt, target, previous_hash, nb_elements, asc, nonce)) {
-				cout << "Found matching nonce: " << nonce << endl;
-				return nonce;
+			int attempts = 0;
+			const auto start = chrono::steady_clock::now();
+			for (; attempts < 40000; ++attempts, ++nonce) {
+				if (test_list_sort_nonce(mt, target, previous_hash, nb_elements, asc, nonce)) {
+					cout << "Found matching nonce: " << nonce << endl;
+					return nonce;
+				}
 			}
-
-			++attempts;
-			if (attempts % 10 == 0 && chrono::steady_clock::now() - last > 5s) {
-				cout << "speed: " << attempts/5.0 << "/s" << endl;
-				attempts = 0;
-				last = chrono::steady_clock::now();
-			}
+			const auto stop = chrono::steady_clock::now();
+			const auto diff = chrono::duration_cast<chrono::duration<float>>(stop - start);
+			cout << "speed: " << static_cast<double>(attempts) / diff.count() << "/s" << endl;
 		}
-		return nonce;
+		return 0;
 	}
 }
