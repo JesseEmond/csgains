@@ -8,6 +8,7 @@
 #include <chrono>
 #include <future>
 #include <thread>
+#include <atomic>
 
 #include "picosha2.h"
 #include "mt.h"
@@ -74,16 +75,24 @@ int multithreaded_task(int start, int max_tries, TaskCreator task_creator) {
 	threads.reserve(n_threads);
 	const auto before = chrono::steady_clock::now();
 	const int workload = max_tries / n_threads;
+	atomic_bool done(false);
+
 	for (int i = 0; i < n_threads; ++i) {
 		const int my_start = start + workload * i;
 		const int my_end = my_start + workload;
 		threads.push_back(async(launch::async,
-					[i, my_start, my_end, workload, &task_creator] {
+					[i, my_start, my_end, workload, &task_creator, &done] {
 					auto task = task_creator();
 					for (int nonce = my_start; nonce < my_end; ++nonce) {
-						if (task(nonce)) {
-							cout << "Thread " << i << " found nonce " << nonce << endl;
-							return nonce;
+						for (int j = 0; j < 5000; ++j, ++nonce) {
+							if (task(nonce)) {
+								done.store(true);
+								cout << "Thread " << i << " found nonce " << nonce << endl;
+								return nonce;
+							}
+						}
+						if (done) {
+							return -(nonce - my_start);
 						}
 					}
 					return -workload;
