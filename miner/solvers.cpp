@@ -56,7 +56,7 @@ bool test_list_sort_nonce(MT64& mt, const string& target, const char* previous_h
 	generate(begin(values), end(values), [&] { return mt.next(); });
 
 	if (asc) sort(begin(values), end(values));
-	else sort(rbegin(values), rend(values));
+	else sort(begin(values), end(values), std::greater<MT64::value_t>());
 
 	stringstream ss;
 	copy(begin(values), end(values), ostream_iterator<MT64::value_t>(ss));
