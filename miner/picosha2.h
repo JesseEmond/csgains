@@ -74,13 +74,17 @@ const word_t initial_message_digest[8] = {
 	0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
 };
 
-word_t ch(word_t x, word_t y, word_t z){
-	return (x&y)^((~x)&z);
-}
+struct {
+	word_t operator()(word_t x, word_t y, word_t z) {
+		return (x&y)^((~x)&z);
+	}
+} ch;
 
-word_t maj(word_t x, word_t y, word_t z){
-	return (x&y)^(x&z)^(y&z);
-}
+struct {
+	word_t operator()(word_t x, word_t y, word_t z) {
+		return (x&y)^(x&z)^(y&z);
+	}
+} maj;
 
 struct {
 	word_t operator()(word_t x, std::size_t n) {
@@ -89,26 +93,36 @@ struct {
 	}
 } rotr;
 
-word_t bsig0(word_t x){
-	return rotr(x, 2)^rotr(x, 13)^rotr(x, 22);
-}
+struct {
+	word_t operator()(word_t x) {
+		return rotr(x, 2)^rotr(x, 13)^rotr(x, 22);
+	}
+} bsig0;
 
-word_t bsig1(word_t x){
-	return rotr(x, 6)^rotr(x, 11)^rotr(x, 25);
-}
+struct {
+	word_t operator()(word_t x) {
+		return rotr(x, 6)^rotr(x, 11)^rotr(x, 25);
+	}
+} bsig1;
 
-word_t shr(word_t x, std::size_t n){
-	assert(n < 32);
-	return x >> n;
-}
+struct {
+	word_t operator()(word_t x, std::size_t n) {
+		assert(n < 32);
+		return x >> n;
+	}
+} shr;
 
-word_t ssig0(word_t x){
-	return rotr(x, 7)^rotr(x, 18)^shr(x, 3);
-}
+struct {
+	word_t operator()(word_t x) {
+		return rotr(x, 7)^rotr(x, 18)^shr(x, 3);
+	}
+} ssig0;
 
-word_t ssig1(word_t x){
-	return rotr(x, 17)^rotr(x, 19)^shr(x, 10);
-}
+struct {
+	word_t operator()(word_t x) {
+		return rotr(x, 17)^rotr(x, 19)^shr(x, 10);
+	}
+} ssig1;
 
 template<typename RaIter1, typename RaIter2>
 void hash256_block(RaIter1 message_digest, RaIter2 first, RaIter2 last){
