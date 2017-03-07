@@ -48,7 +48,7 @@ private:
 	}
 
 public:
-	state_t seed(const seed_t &seed) {
+	void seed(const seed_t &seed) {
 		index = N;
 		state[0] = seed;
 		for (int i = 1; i < N; ++i) {

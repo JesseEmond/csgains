@@ -46,13 +46,14 @@ MT64::seed_t seed_from_hash(const string& hash) {
 	return swap_endian(seed);
 }
 
-MT64 feed_prng(MT64& mt, const char* previous, int nonce) {
+void feed_prng(MT64& mt, const char* previous, int nonce) {
 	stringstream ss;
 	ss << previous << nonce;
 	string hash = sha256(ss.str());
 	auto seed = seed_from_hash(hash);
 	mt.seed(seed);
 }
+
 bool test_list_sort_nonce(MT64& mt, const string& target, const char* previous_hash, int nb_elements, bool asc, int nonce) {
 	feed_prng(mt, previous_hash, nonce);
 	vector<MT64::value_t> values(nb_elements, 0);
