@@ -69,13 +69,13 @@ bool test_list_sort_nonce(MT64& mt, const string& target, const char* previous_h
 }
 
 template <class TaskCreator>
-int multithreaded_task(int start, int max_tries, TaskCreator task_creator) {
-	const auto n_threads = max(thread::hardware_concurrency(), 1u);
+int multithreaded_task(int start, int max_tries_per_thread, TaskCreator task_creator) {
+	const auto n_threads = 1u;//max(thread::hardware_concurrency(), 1u);
 	cout << "Launching " << n_threads << " threads." << endl;
 	vector<future<int>> threads;
 	threads.reserve(n_threads);
 	const auto before = chrono::steady_clock::now();
-	const int workload = max_tries / n_threads;
+	const int workload = max_tries_per_thread;
 	atomic_bool done(false);
 
 	for (int i = 0; i < n_threads; ++i) {
@@ -93,9 +93,11 @@ int multithreaded_task(int start, int max_tries, TaskCreator task_creator) {
 							}
 						}
 						if (done) {
+                                                        // return how many nonces were checked
 							return -(nonce - my_start);
 						}
 					}
+                                        // return how many nonces were checked
 					return -workload;
 					}));
 	}
@@ -144,9 +146,9 @@ extern "C" {
 			}
 		};
 
-		const int step_size = 150000;
-		for (int nonce = 0; nonce < 99999999; nonce += step_size) {
-			int found_nonce = multithreaded_task(nonce, step_size,
+		const int step_size_per_thread = 50000;
+		for (int nonce = 0; nonce < 99999999; nonce += step_size_per_thread) {
+			int found_nonce = multithreaded_task(nonce, step_size_per_thread,
 					[&] { return sort_task{target, previous_hash, nb_elements, asc}; });
 			if (found_nonce >= 0) return found_nonce;
 		}
