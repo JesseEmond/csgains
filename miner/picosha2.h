@@ -36,7 +36,7 @@ namespace picosha2
 typedef unsigned long word_t;
 typedef unsigned char byte_t;
 
-namespace detail 
+namespace detail
 {
 struct {
 	byte_t operator()(byte_t x) {
@@ -70,21 +70,17 @@ const word_t add_constant[64] = {
 };
 
 const word_t initial_message_digest[8] = {
-	0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 
+	0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
 	0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
 };
 
-struct {
-	word_t operator()(word_t x, word_t y, word_t z) {
-		return (x&y)^((~x)&z);
-	}
-} ch;
+inline word_t ch(word_t x, word_t y, word_t z) {
+    return (x&y)^((~x)&z);
+}
 
-struct {
-	word_t operator()(word_t x, word_t y, word_t z) {
-		return (x&y)^(x&z)^(y&z);
-	}
-} maj;
+inline word_t maj(word_t x, word_t y, word_t z) {
+    return (x&y)^(x&z)^(y&z);
+}
 
 struct {
 	word_t operator()(word_t x, std::size_t n) {
@@ -130,14 +126,14 @@ void hash256_block(RaIter1 message_digest, RaIter2 first, RaIter2 last){
 	std::fill(w, w+64, 0);
 	for(std::size_t i = 0; i < 16; ++i){
 		w[i] = (static_cast<word_t>(mask_8bit(*(first+i*4)))<<24)
-			|(static_cast<word_t>(mask_8bit(*(first+i*4+1)))<<16) 
+			|(static_cast<word_t>(mask_8bit(*(first+i*4+1)))<<16)
 			|(static_cast<word_t>(mask_8bit(*(first+i*4+2)))<<8)
-			|(static_cast<word_t>(mask_8bit(*(first+i*4+3)))); 
+			|(static_cast<word_t>(mask_8bit(*(first+i*4+3))));
 	}
 	for(std::size_t i = 16; i < 64; ++i){
 		w[i] = mask_32bit(ssig1(w[i-2])+w[i-7]+ssig0(w[i-15])+w[i-16]);
 	}
-	
+
 	word_t a = *message_digest;
 	word_t b = *(message_digest+1);
 	word_t c = *(message_digest+2);
@@ -146,7 +142,7 @@ void hash256_block(RaIter1 message_digest, RaIter2 first, RaIter2 last){
 	word_t f = *(message_digest+5);
 	word_t g = *(message_digest+6);
 	word_t h = *(message_digest+7);
-	
+
 	for(std::size_t i = 0; i < 64; ++i){
 		word_t temp1 = h+bsig1(e)+ch(e,f,g)+add_constant[i]+w[i];
 		word_t temp2 = bsig0(a)+maj(a,b,c);
@@ -178,11 +174,11 @@ template<typename InIter>
 void output_hex(InIter first, InIter last, std::ostream& os){
 	os.setf(std::ios::hex, std::ios::basefield);
 	while(first != last){
-		os.width(2);
-		os.fill('0');
+                os.width(2);
+                os.fill('0');
 		os << static_cast<unsigned int>(*first);
 		++first;
-	}	
+	}
 	os.setf(std::ios::dec, std::ios::basefield);
 }
 
@@ -226,11 +222,13 @@ public:
 
 	template<typename RaIter>
 	void process(RaIter first, RaIter last){
-		add_to_data_length(std::distance(first, last));
+		const auto data_length = std::distance(first, last);
+		add_to_data_length(data_length);
+		buffer_.reserve(data_length);
 		std::copy(first, last, std::back_inserter(buffer_));
 		std::size_t i = 0;
 		for(;i+64 <= buffer_.size(); i+=64){
-			detail::hash256_block(h_, buffer_.begin()+i, buffer_.begin()+i+64);	
+			detail::hash256_block(h_, buffer_.begin()+i, buffer_.begin()+i+64);
 		}
 		buffer_.erase(buffer_.begin(), buffer_.begin()+i);
 	}

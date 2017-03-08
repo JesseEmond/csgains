@@ -62,7 +62,7 @@ bool test_list_sort_nonce(MT64& mt, const string& target, const char* previous_h
 	if (asc) sort(begin(values), end(values));
 	else sort(begin(values), end(values), std::greater<MT64::value_t>());
 
-	stringstream ss;
+        stringstream ss;
 	copy(begin(values), end(values), ostream_iterator<MT64::value_t>(ss));
 	auto hash = sha256(ss.str());
 	return hash.compare(0, target.size(), target) == 0;
