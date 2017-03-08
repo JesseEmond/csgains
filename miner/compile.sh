@@ -1,6 +1,6 @@
 #!/bin/sh
 set -e
 echo "Compiling..."
-g++ -c -fPIC -Ofast -std=c++17 -DNDEBUG solvers.cpp -o solvers.o
+g++ -c -g -fPIC -Ofast -std=c++17 -DNDEBUG solvers.cpp -o solvers.o
 echo "Linking..."
-g++ -shared -Wl,-soname,libsolvers.o -o libsolvers.so solvers.o
+g++ -g -shared -Wl,-soname,libsolvers.o -o libsolvers.so solvers.o
