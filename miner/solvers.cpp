@@ -70,7 +70,7 @@ bool test_list_sort_nonce(MT64& mt, const string& target, const char* previous_h
 
 template <class TaskCreator>
 int multithreaded_task(int start, int max_tries_per_thread, TaskCreator task_creator) {
-        const auto n_threads = 1u;//max(thread::hardware_concurrency(), 1u);
+        const auto n_threads = max(thread::hardware_concurrency(), 1u);
         cout << "Launching " << n_threads << " threads." << endl;
         vector<future<int>> threads;
         threads.reserve(n_threads);
