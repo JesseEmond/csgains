@@ -47,8 +47,9 @@ inline EncodedPosition decode_score(EncodedHeapNode n) {
     return n & 0xFFFFFFFF;
 }
 
-Path reconstruct_path(EncodedPosition start, EncodedPosition end, const CameFrom& came_from) {
-    Path path;
+void reconstruct_path(EncodedPosition start, EncodedPosition end,
+                      const CameFrom& came_from, Path& path) {
+    path.clear();
     while (end != start) {
         path.push_back(decode(end));
         const auto it = std::find_if(came_from.begin(), came_from.end(), [&end] (auto p) {
@@ -58,14 +59,14 @@ Path reconstruct_path(EncodedPosition start, EncodedPosition end, const CameFrom
     }
     path.push_back(decode(start));
     reverse(path.begin(), path.end());
-    return path;
 }
 
 const std::array<Position, 4> directions = { Position(1,0), Position(-1,0),
                                              Position(0,1), Position(0,-1) };
-Path shortest_path(const Grid& grid, Position start, Position end,
+void shortest_path(const Grid& grid, Position start, Position end,
                    bool use_heuristic,
-                   CameFrom& came_from, CostSoFar& cost_so_far) {
+                   CameFrom& came_from, CostSoFar& cost_so_far,
+                   Path& path) {
     static const auto frontier_comparator = std::greater_equal<EncodedHeapNode>();
     Frontier frontier;
     const auto encoded_start = encode(start);
@@ -84,7 +85,8 @@ Path shortest_path(const Grid& grid, Position start, Position end,
         frontier.pop_back();
 
         if (pos == encoded_end) {
-            return reconstruct_path(encoded_start, encoded_end, came_from);
+            reconstruct_path(encoded_start, encoded_end, came_from, path);
+            return;
         }
 
         for (const auto direction : directions) {
@@ -98,17 +100,18 @@ Path shortest_path(const Grid& grid, Position start, Position end,
                 grid[next_pos.first][next_pos.second] == Blocker) continue;
             const auto next = encode(next_pos);
 
-            auto curItCost = cost_so_far.end();
-            auto newIt = cost_so_far.end();
-            for (auto it = cost_so_far.begin(); it != cost_so_far.end(); ++it) {
-                if (it->first == pos) {
-                    curItCost = it;
-                    if (newIt != cost_so_far.end()) break;
-                } else if (it->first == next) {
-                    newIt = it;
-                    if (curItCost != cost_so_far.end()) break;
-                }
-            }
+            const std::array<EncodedPosition, 2> its = { pos, next };
+            auto it = std::find_first_of(cost_so_far.begin(), cost_so_far.end(),
+                                         its.begin(), its.end(), [] (auto pair, auto pos) {
+                return pair.first == pos;
+            });
+            const auto remaining = it->first == pos ? next : pos;
+            auto other = std::find_if(std::next(it), cost_so_far.end(), [remaining] (auto pair) {
+                return pair.first == remaining;
+            });
+            auto curItCost = it->first == pos ? it : other;
+            auto newIt = curItCost == it ? other : it;
+
             const auto new_cost = curItCost->second + 1;
             if (newIt == cost_so_far.end()) {
                 cost_so_far.emplace_back(next, std::numeric_limits<int>::max());
@@ -126,7 +129,7 @@ Path shortest_path(const Grid& grid, Position start, Position end,
         }
     }
 
-    return {};
+    path.clear(); // no path
 }
 
 void display(const Grid &grid) {

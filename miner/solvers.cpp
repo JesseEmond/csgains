@@ -18,55 +18,55 @@ using namespace std;
 
 template <typename T>
 T swap_endian(T u) {
-        static_assert (CHAR_BIT == 8, "CHAR_BIT != 8");
+    static_assert (CHAR_BIT == 8, "CHAR_BIT != 8");
 
-        union {
-                T u;
-                unsigned char u8[sizeof(T)];
-        } source, dest;
+    union {
+        T u;
+        unsigned char u8[sizeof(T)];
+    } source, dest;
 
-        source.u = u;
+    source.u = u;
 
-        for (size_t k = 0; k < sizeof(T); k++)
-                dest.u8[k] = source.u8[sizeof(T) - k - 1];
+    for (size_t k = 0; k < sizeof(T); k++)
+        dest.u8[k] = source.u8[sizeof(T) - k - 1];
 
-        return dest.u;
+    return dest.u;
 }
 
 string sha256(const string& src) {
-        return picosha2::hash256_hex_string(src);
+    return picosha2::hash256_hex_string(src);
 }
 
 MT64::seed_t seed_from_hash(const string& hash) {
-        string prefix(begin(hash), next(begin(hash), 16)); // 8 bytes
-        stringstream converter(prefix);
-        MT64::seed_t seed;
-        converter >> std::hex >> seed;
-        return swap_endian(seed);
+    string prefix(begin(hash), next(begin(hash), 16)); // 8 bytes
+    stringstream converter(prefix);
+    MT64::seed_t seed;
+    converter >> std::hex >> seed;
+    return swap_endian(seed);
 }
 
 void feed_prng(MT64& mt, const char* previous, int nonce) {
-        stringstream ss;
-        ss << previous << nonce;
-        string hash = sha256(ss.str());
-        auto seed = seed_from_hash(hash);
-        mt.seed(seed);
+    stringstream ss;
+    ss << previous << nonce;
+    string hash = sha256(ss.str());
+    auto seed = seed_from_hash(hash);
+    mt.seed(seed);
 }
 
 bool test_list_sort_nonce(MT64& mt, const string& target,
                           const char* previous_hash, int nb_elements,
                           bool asc, int nonce) {
-        feed_prng(mt, previous_hash, nonce);
-        vector<MT64::value_t> values(nb_elements, 0);
-        generate(begin(values), end(values), [&] { return mt.next(); });
+    feed_prng(mt, previous_hash, nonce);
+    vector<MT64::value_t> values(nb_elements, 0);
+    generate(begin(values), end(values), [&] { return mt.next(); });
 
-        if (asc) sort(begin(values), end(values));
-        else sort(begin(values), end(values), std::greater<MT64::value_t>());
+    if (asc) sort(begin(values), end(values));
+    else sort(begin(values), end(values), std::greater<MT64::value_t>());
 
-        stringstream ss;
-        copy(begin(values), end(values), ostream_iterator<MT64::value_t>(ss));
-        auto hash = sha256(ss.str());
-        return hash.compare(0, target.size(), target) == 0;
+    stringstream ss;
+    copy(begin(values), end(values), ostream_iterator<MT64::value_t>(ss));
+    auto hash = sha256(ss.str());
+    return hash.compare(0, target.size(), target) == 0;
 }
 
 Position random_position(MT64& mt, int grid_size) {
@@ -96,12 +96,12 @@ Position random_unchecked_position(MT64& mt, int grid_size) {
     return std::move(Position(row, column));
 }
 
-Grid random_grid(MT64& mt, int nb_blockers, int grid_size,
-                 Position start, Position end) {
-    Grid grid;
-    grid.reserve(grid_size);
-    const Row row(grid_size, Empty);
-    for (int i = 0; i < grid_size; ++i) grid.push_back(row);
+
+void random_grid(MT64& mt, int nb_blockers, int grid_size,
+                 Position start, Position end, Grid& grid, Row& empty_row) {
+    grid.clear();
+    empty_row.resize(grid_size, Empty);
+    for (int i = 0; i < grid_size; ++i) grid.push_back(empty_row);
     grid[start.first][start.second] = Start;
     grid[end.first][end.second] = End;
 
@@ -111,23 +111,22 @@ Grid random_grid(MT64& mt, int nb_blockers, int grid_size,
             grid[blocker.first][blocker.second] = Blocker;
         }
     }
-
-    return std::move(grid);
 }
 
 bool test_shortest_path_nonce(MT64& mt, const string& target,
                               const char* previous_hash, int nb_blockers,
                               int grid_size, int nonce,
-                              CameFrom& came_from, CostSoFar& cost_so_far) {
+                              CameFrom& came_from, CostSoFar& cost_so_far,
+                              Grid& grid, Row& empty_row, Path& path,
+                              stringstream& ss) {
     feed_prng(mt, previous_hash, nonce);
 
     const auto start = random_position(mt, grid_size);
     const auto end = random_end_position(mt, grid_size, start);
-    const auto grid = random_grid(mt, nb_blockers, grid_size, start, end);
-    const auto path = shortest_path(grid, start, end, true,
-                                    came_from, cost_so_far);
+    random_grid(mt, nb_blockers, grid_size, start, end, grid, empty_row);
+    shortest_path(grid, start, end, true, came_from, cost_so_far, path);
     if (path.empty()) return false;
-    stringstream ss;
+    ss.str(string());
     for_each(path.begin(), path.end(), [&ss](Position pos) {
         ss << pos.first << pos.second;
     });
@@ -138,11 +137,11 @@ bool test_shortest_path_nonce(MT64& mt, const string& target,
     // is allowed to go in directions that increase the heuristic but give
     // the same path) => verify that dijkstra (no heuristic) gives the same
     // path.
-    const auto dijkstra_path = shortest_path(grid, start, end, false,
-                                             came_from, cost_so_far);
-
     cout << "Potential path found. Checking Dijkstra." << endl;
-    return dijkstra_path == path;
+    const auto original_path = path;
+    shortest_path(grid, start, end, false, came_from, cost_so_far, path);
+
+    return original_path == path;
 }
 
 const auto n_threads = max(thread::hardware_concurrency(), 1u);
@@ -205,16 +204,20 @@ extern "C" {
         class unittest_failed_shortest_path{};
         CameFrom came_from;
         CostSoFar cost_so_far;
-        if (!test_shortest_path_nonce(mt, "8fe4", "9551d9f2b91df3381938ddc8ee97dcf0663113ceacd8f766912aa6bcf35bb18b", 80, 25, 21723, came_from, cost_so_far)) {
+        Grid grid;
+        Row empty_row;
+        Path path;
+        stringstream ss;
+        if (!test_shortest_path_nonce(mt, "8fe4", "9551d9f2b91df3381938ddc8ee97dcf0663113ceacd8f766912aa6bcf35bb18b", 80, 25, 21723, came_from, cost_so_far, grid, empty_row, path, ss)) {
             throw unittest_failed_shortest_path{};
         }
-        if (!test_shortest_path_nonce(mt, "12f7", "8fe4ed64fc0397a07dfe3a270d7e148aeb9fbac7c54d1eb870d0f379c0f4c211", 80, 25, 95148, came_from, cost_so_far)) {
+        if (!test_shortest_path_nonce(mt, "12f7", "8fe4ed64fc0397a07dfe3a270d7e148aeb9fbac7c54d1eb870d0f379c0f4c211", 80, 25, 95148, came_from, cost_so_far, grid, empty_row, path, ss)) {
             throw unittest_failed_shortest_path{};
         }
-        if (test_shortest_path_nonce(mt, "7134", "72c59bc893cc40dd9101500b558bdd35e612e935339bd017eb69802391d0d038", 80, 25, 114393, came_from, cost_so_far)) {
+        if (test_shortest_path_nonce(mt, "7134", "72c59bc893cc40dd9101500b558bdd35e612e935339bd017eb69802391d0d038", 80, 25, 114393, came_from, cost_so_far, grid, empty_row, path, ss)) {
             throw unittest_failed_shortest_path{};
         }
-        if (test_shortest_path_nonce(mt, "3b6b", "228178a3b76322dd6e7c6329921a83c7d6a5b20dbf00002eca98db00054acf44", 80, 25, 124097, came_from, cost_so_far)) {
+        if (test_shortest_path_nonce(mt, "3b6b", "228178a3b76322dd6e7c6329921a83c7d6a5b20dbf00002eca98db00054acf44", 80, 25, 124097, came_from, cost_so_far, grid, empty_row, path, ss)) {
             throw unittest_failed_shortest_path{};
         }
 
@@ -264,16 +267,22 @@ extern "C" {
             MT64 mt;
             CameFrom came_from;
             CostSoFar cost_so_far;
+            Grid grid;
+            Row empty_row;
+            Path path;
+            stringstream ss;
 
             pathfinding_task(const string& target,
                              const char* previous_hash,
                              int nb_blockers, int grid_size)
                 : target{target}, previous_hash{previous_hash},
                 nb_blockers{nb_blockers},
-                grid_size{grid_size}, mt{}, came_from{}, cost_so_far{} {}
+                grid_size{grid_size}, mt{}, came_from{}, cost_so_far{},
+                grid{}, empty_row{}, path{}, ss{} {}
 
             bool operator()(int nonce) {
-                return test_shortest_path_nonce(mt, target, previous_hash, nb_blockers, grid_size, nonce, came_from, cost_so_far);
+                return test_shortest_path_nonce(mt, target, previous_hash, nb_blockers, grid_size, nonce,
+                                                came_from, cost_so_far, grid, empty_row, path, ss);
             }
         };
 
