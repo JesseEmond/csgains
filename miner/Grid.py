@@ -21,6 +21,16 @@ class Grid:
         self.walls = []
         self.weights = {}
 
+    def display(self, start, end):
+        for row in range(self.grid_size):
+            r = ""
+            for col in range(self.grid_size):
+                if (row, col) == start: r += "s"
+                if (row, col) == end: r += "e"
+                if (row, col) in self.walls: r += "#"
+                else: r += "."
+            print(r)
+
     def in_range(self, pos):
         (row, col) = pos
         return 0 <= row <= self.grid_size and 0 <= col <= self.grid_size

@@ -92,21 +92,17 @@ Position random_end_position(MT64& mt, int grid_size, Position start) {
     }
 }
 
-Position random_blocker_position(MT64& mt, const Grid &grid) {
-    const int grid_size = grid.size();
-    while (true) {
-        const auto row = mt.next() % grid_size;
-        if (row == 0 || row == grid_size - 1) continue;
-        const auto column = mt.next() % grid_size;
-        if (column == 0 || column == grid_size - 1) continue;
-        if (grid[row][column] != Empty) continue;
-        return Position(row, column);
-    }
+Position random_unchecked_position(MT64& mt, int grid_size) {
+    const auto row = mt.next() % grid_size;
+    const auto column = mt.next() % grid_size;
+    return Position(row, column);
 }
 
 Grid random_grid(MT64& mt, int nb_blockers, int grid_size) {
     const auto start = random_position(mt, grid_size);
+    cout << "Start: " << start.first << "," << start.second << endl;
     const auto end = random_end_position(mt, grid_size, start);
+    cout << "End: " << end.first << "," << end.second << endl;
 
     Grid grid;
     grid.reserve(grid_size);
@@ -116,8 +112,10 @@ Grid random_grid(MT64& mt, int nb_blockers, int grid_size) {
     grid[end.first][end.second] = End;
 
     for (int i = 0; i < nb_blockers; ++i) {
-        const auto blocker = random_blocker_position(mt, grid);
-        grid[blocker.first][blocker.second] = Blocker;
+        const auto blocker = random_unchecked_position(mt, grid_size);
+        if (blocker != start && blocker != end) {
+            grid[blocker.first][blocker.second] = Blocker;
+        }
     }
 
     return grid;
@@ -126,7 +124,10 @@ Grid random_grid(MT64& mt, int nb_blockers, int grid_size) {
 bool test_shortest_path_nonce(MT64& mt, const string& target,
                               const char* previous_hash, int nb_blockers,
                               int grid_size, int nonce) {
+    feed_prng(mt, previous_hash, nonce);
+
     const auto grid = random_grid(mt, nb_blockers, grid_size);
+    return true;
 }
 
 template <class TaskCreator>
@@ -147,7 +148,7 @@ int multithreaded_task(int start, int max_tries_per_thread, TaskCreator task_cre
                                         auto task = task_creator();
                                         for (int nonce = my_start; nonce < my_end; ++nonce) {
 						// try a couple of times before checking the atomic flag
-                                                for (int j = 0; j < 5000; ++j, ++nonce) {
+                                                for (int j = 0; j < 4000; ++j, ++nonce) {
                                                         if (task(nonce)) {
                                                                 done.store(true);
                                                                 cout << "Thread " << i << " found nonce " << nonce << endl;

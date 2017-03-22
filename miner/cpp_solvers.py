@@ -17,7 +17,7 @@ def solve_reverse_sorted_list(target_prefix, previous_hash, nb_elements):
                                False)
 
 def solve_shortest_path(target_prefix, previous_hash, nb_blockers, grid_size):
-    return lib.solve_list_sort(target_prefix.encode('ascii'),
-                               previous_hash.encode('ascii'),
-                               nb_blockers,
-                               grid_size)
+    return lib.solve_shortest_path(target_prefix.encode('ascii'),
+                                   previous_hash.encode('ascii'),
+                                   nb_blockers,
+                                   grid_size)

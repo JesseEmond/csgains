@@ -45,6 +45,7 @@ class SortedListSolver(ChallengeSolver):
 
         #nonce = random.randint(0, 99999999)
         nonce = solve_sorted_list(hash_prefix, previous_hash, nb_elements)
+        print("Verifying nonce %d..." % nonce)
 
         while self.alive:
             self.feed_prng(previous_hash, nonce)
@@ -86,6 +87,7 @@ class ReverseSortedListSolver(ChallengeSolver):
 
         #nonce = random.randint(0, 99999999)
         nonce = solve_reverse_sorted_list(hash_prefix, previous_hash, nb_elements)
+        print("Verifying nonce %d..." % nonce)
 
         while self.alive:
             self.feed_prng(previous_hash, nonce)
@@ -126,9 +128,10 @@ class ShortestPathSolver(ChallengeSolver):
         nb_blockers = parameters['nb_blockers']
         grid_size = parameters['grid_size']
 
-        nonce = random.randint(0, 9999999999)
-        # nonce = solve_shortest_path(hash_prefix, previous_hash,
-        #                             nb_blockers, grid_size)
+        # nonce = random.randint(0, 9999999999)
+        nonce = solve_shortest_path(hash_prefix, previous_hash,
+                                    nb_blockers, grid_size)
+        print("Verifying nonce %d..." % nonce)
 
         while self.alive:
             self.feed_prng(previous_hash, nonce)
@@ -158,6 +161,8 @@ class ShortestPathSolver(ChallengeSolver):
                 block_pos = (self.mt.extract_number() % grid_size, self.mt.extract_number() % grid_size)
                 if block_pos != start_pos and block_pos != end_pos and block_pos not in grid.walls:
                     grid.walls.append(block_pos)
+
+            # grid.display(start_pos, end_pos)
 
             #trying to resolve the grid
             path = []
