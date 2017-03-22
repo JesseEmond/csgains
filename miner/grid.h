@@ -8,13 +8,15 @@
 #include <algorithm>
 #include <iostream>
 #include <iterator>
+#include <cstdint>
 
 using Coordinate = int;
 using Position = std::pair<Coordinate, Coordinate>;
 using Cell = char;
 using Row = std::vector<Cell>;
 using Grid = std::vector<Row>;
-using EncodedPosition = int;
+using EncodedPosition = uint32_t;
+using EncodedHeapNode = uint64_t;
 
 const Cell Empty = '.';
 const Cell Blocker = '#';
@@ -24,7 +26,7 @@ const Cell End = 'e';
 using Path = std::vector<Position>;
 using CameFrom = std::vector<std::pair<EncodedPosition, EncodedPosition>>;
 using CostSoFar = std::vector<std::pair<EncodedPosition, int>>;
-using HeapNode = std::pair<int, EncodedPosition>;
+using Frontier = std::vector<EncodedHeapNode>;
 
 inline int heuristic(Position a, Position b) {
     // manhattan
@@ -32,10 +34,17 @@ inline int heuristic(Position a, Position b) {
 }
 
 inline EncodedPosition encode(Position p) {
-    return ((p.first & 0xFFFF) << 16) + (p.second & 0xFFFF);
+    return ((p.first & 0xFFFF) << 16) | (p.second & 0xFFFF);
 }
 inline Position decode(EncodedPosition n) {
     return Position{(n & 0xFFFF0000) >> 16, n & 0xFFFF};
+}
+inline EncodedHeapNode encode_score(int score, EncodedPosition position) {
+    EncodedHeapNode n = score;
+    return (n << 32) | position;
+}
+inline EncodedPosition decode_score(EncodedHeapNode n) {
+    return n & 0xFFFFFFFF;
 }
 
 Path reconstruct_path(EncodedPosition start, EncodedPosition end, const CameFrom& came_from) {
@@ -57,11 +66,11 @@ const std::array<Position, 4> directions = { Position(1,0), Position(-1,0),
 Path shortest_path(const Grid& grid, Position start, Position end,
                    bool use_heuristic,
                    CameFrom& came_from, CostSoFar& cost_so_far) {
-    static const auto frontier_comparator = std::greater_equal<HeapNode>();
-    std::vector<HeapNode> frontier;
+    static const auto frontier_comparator = std::greater_equal<EncodedHeapNode>();
+    Frontier frontier;
     const auto encoded_start = encode(start);
     const auto encoded_end = encode(end);
-    frontier.emplace_back(0, encoded_start);
+    frontier.push_back(encode_score(0, encoded_start));
 
     came_from.clear();
     cost_so_far.clear();
@@ -71,7 +80,7 @@ Path shortest_path(const Grid& grid, Position start, Position end,
 
     while (!frontier.empty()) {
         std::pop_heap(frontier.begin(), frontier.end(), frontier_comparator);
-        const auto pos = frontier.back().second;
+        const auto pos = decode_score(frontier.back());
         frontier.pop_back();
 
         if (pos == encoded_end) {
@@ -110,7 +119,7 @@ Path shortest_path(const Grid& grid, Position start, Position end,
                 const auto priority = new_cost +
                                       (use_heuristic ?
                                        heuristic(next_pos, end) : 0);
-                frontier.emplace_back(priority, next);
+                frontier.push_back(encode_score(priority, next));
                 std::push_heap(frontier.begin(), frontier.end(), frontier_comparator);
                 came_from.emplace_back(next, pos);
             }
