@@ -3,7 +3,7 @@
 
 #include <vector>
 #include <utility>
-#include <map>
+#include <unordered_map>
 #include <array>
 #include <algorithm>
 #include <iostream>
@@ -21,7 +21,7 @@ const Cell Start = 's';
 const Cell End = 'e';
 
 using Path = std::vector<Position>;
-using CameFrom = std::map<Position, Position>;
+using CameFrom = std::vector<std::pair<Position, Position>>;
 using HeapNode = std::pair<int, Position>;
 
 inline int heuristic(Position a, Position b) {
@@ -33,7 +33,10 @@ Path reconstruct_path(Position start, Position end, const CameFrom& came_from) {
     Path path;
     while (end != start) {
         path.push_back(end);
-        end = came_from.find(end)->second;
+        const auto it = std::find_if(came_from.begin(), came_from.end(), [&end] (const auto& p) {
+            return p.first == end;
+        });
+        end = it->second;
     }
     path.push_back(start);
     reverse(path.begin(), path.end());
@@ -49,9 +52,10 @@ Path shortest_path(const Grid& grid, Position start, Position end,
     frontier.emplace_back(0, start);
 
     CameFrom came_from;
-    std::map<Position, int> cost_so_far;
-    came_from[start] = start;
-    cost_so_far[start] = 0;
+    std::vector<std::pair<Position, int>> cost_so_far;
+
+    came_from.emplace_back(start, start);
+    cost_so_far.emplace_back(start, 0);
 
     while (!frontier.empty()) {
         std::pop_heap(frontier.begin(), frontier.end(), frontier_comparator);
@@ -71,15 +75,25 @@ Path shortest_path(const Grid& grid, Position start, Position end,
                 static_cast<unsigned int>(next.second+1) >= grid.size() ||
                 grid[next.first][next.second] == Blocker) continue;
 
-            const auto new_cost = cost_so_far[pos] + 1;
-            if (!cost_so_far.count(next) || new_cost < cost_so_far[next]) {
-                cost_so_far[next] = new_cost;
+            auto curItCost = std::find_if(cost_so_far.begin(), cost_so_far.end(), [&pos](const auto& cost) {
+                return cost.first == pos;
+            });
+            const auto new_cost = curItCost->second + 1;
+            auto newIt = std::find_if(cost_so_far.begin(), cost_so_far.end(), [&next](const auto& cost) {
+                return cost.first == next;
+            });
+            if (newIt == cost_so_far.end()) {
+                cost_so_far.emplace_back(next, std::numeric_limits<int>::max());
+                newIt = std::prev(cost_so_far.end());
+            }
+            if (new_cost < newIt->second) {
+                newIt->second = new_cost;
                 const auto priority = new_cost +
                                       (use_heuristic ?
                                        heuristic(next, end) : 0);
                 frontier.emplace_back(priority, next);
                 std::push_heap(frontier.begin(), frontier.end(), frontier_comparator);
-                came_from[next] = pos;
+                came_from.emplace_back(next, pos);
             }
         }
     }

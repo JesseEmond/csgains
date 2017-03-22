@@ -84,6 +84,7 @@ class ReverseSortedListSolver(ChallengeSolver):
 
     def solve(self, parameters, hash_prefix, previous_hash):
         nb_elements = parameters['nb_elements']
+        print("List: %d elems" % nb_elements)
 
         #nonce = random.randint(0, 99999999)
         nonce = solve_reverse_sorted_list(hash_prefix, previous_hash, nb_elements)
@@ -127,6 +128,8 @@ class ShortestPathSolver(ChallengeSolver):
     def solve(self, parameters, hash_prefix, previous_hash):
         nb_blockers = parameters['nb_blockers']
         grid_size = parameters['grid_size']
+
+        print("Grid: %dx%d, blocks: %d" % (grid_size, grid_size, nb_blockers))
 
         print("Hash prefix: %s" % hash_prefix)
         print("Previous hash: %s" % previous_hash)
