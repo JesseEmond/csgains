@@ -10,7 +10,7 @@
 #include <thread>
 #include <atomic>
 
-#include "picosha2.h"
+#include "sha256.h"
 #include "mt.h"
 #include "grid.h"
 
@@ -34,7 +34,8 @@ T swap_endian(T u) {
 }
 
 string sha256(const string& src) {
-    return picosha2::hash256_hex_string(src);
+    SHA256 h;
+    return h(src);
 }
 
 MT64::seed_t seed_from_hash(const string& hash) {
