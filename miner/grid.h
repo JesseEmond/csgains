@@ -89,13 +89,18 @@ Path shortest_path(const Grid& grid, Position start, Position end,
                 grid[next_pos.first][next_pos.second] == Blocker) continue;
             const auto next = encode(next_pos);
 
-            auto curItCost = std::find_if(cost_so_far.begin(), cost_so_far.end(), [&pos](auto cost) {
-                return cost.first == pos;
-            });
+            auto curItCost = cost_so_far.end();
+            auto newIt = cost_so_far.end();
+            for (auto it = cost_so_far.begin(); it != cost_so_far.end(); ++it) {
+                if (it->first == pos) {
+                    curItCost = it;
+                    if (newIt != cost_so_far.end()) break;
+                } else if (it->first == next) {
+                    newIt = it;
+                    if (curItCost != cost_so_far.end()) break;
+                }
+            }
             const auto new_cost = curItCost->second + 1;
-            auto newIt = std::find_if(cost_so_far.begin(), cost_so_far.end(), [&next](auto cost) {
-                return cost.first == next;
-            });
             if (newIt == cost_so_far.end()) {
                 cost_so_far.emplace_back(next, std::numeric_limits<int>::max());
                 newIt = std::prev(cost_so_far.end());
