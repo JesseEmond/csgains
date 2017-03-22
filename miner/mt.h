@@ -34,7 +34,7 @@ private:
 	int index;
 
 	void twist() {
-		for (int i = 0; i < N; ++i) {
+		for (unsigned int i = 0; i < N; ++i) {
 			auto x = (state[i] & UPPER_MASK) +
 				 (state[(i+1) % N] & LOWER_MASK);
 			auto xA = x >> 1;
@@ -51,7 +51,7 @@ public:
 	void seed(const seed_t &seed) {
 		index = N;
 		state[0] = seed;
-		for (int i = 1; i < N; ++i) {
+		for (unsigned int i = 1; i < N; ++i) {
 			state[i] = F * (state[i-1] ^ (state[i-1] >> (W-2))) + i;
 		}
 	}

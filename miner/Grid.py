@@ -26,8 +26,8 @@ class Grid:
             r = ""
             for col in range(self.grid_size):
                 if (row, col) == start: r += "s"
-                if (row, col) == end: r += "e"
-                if (row, col) in self.walls: r += "#"
+                elif (row, col) == end: r += "e"
+                elif (row, col) in self.walls: r += "#"
                 else: r += "."
             print(r)
 

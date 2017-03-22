@@ -128,9 +128,12 @@ class ShortestPathSolver(ChallengeSolver):
         nb_blockers = parameters['nb_blockers']
         grid_size = parameters['grid_size']
 
+        print("Hash prefix: %s" % hash_prefix)
+        print("Previous hash: %s" % previous_hash)
+
         # nonce = random.randint(0, 9999999999)
         nonce = solve_shortest_path(hash_prefix, previous_hash,
-                                    nb_blockers, grid_size)
+                                   nb_blockers, grid_size)
         print("Verifying nonce %d..." % nonce)
 
         while self.alive:
@@ -162,14 +165,15 @@ class ShortestPathSolver(ChallengeSolver):
                 if block_pos != start_pos and block_pos != end_pos and block_pos not in grid.walls:
                     grid.walls.append(block_pos)
 
-            # grid.display(start_pos, end_pos)
-
             #trying to resolve the grid
             path = []
             solution_string = ""
             try:
                 came_from, cost_so_far = Grid.dijkstra_search(grid, start_pos, end_pos)
                 path = Grid.reconstruct_path(came_from, start_pos, end_pos)
+                # print("PATH!!! ")
+                # print(path)
+                # grid.display(start_pos, end_pos)
 
                 for coord in path:
                     solution_string += "{0}{1}".format(coord[0], coord[1])
@@ -186,6 +190,9 @@ class ShortestPathSolver(ChallengeSolver):
             except Exception as e:
                 # No solution exists
                 pass
+
+            # print("No solution found! Bug? ... :(")
+            # 1/0
 
             nonce = random.randint(0, 99999999)
 
