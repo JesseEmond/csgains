@@ -55,15 +55,16 @@ void feed_prng(MT64& mt, const char* previous, int nonce) {
 
 bool test_list_sort_nonce(MT64& mt, const string& target,
                           const char* previous_hash, int nb_elements,
-                          bool asc, int nonce) {
+                          bool asc, int nonce, vector<MT64::value_t>& values,
+                          stringstream& ss) {
     feed_prng(mt, previous_hash, nonce);
-    vector<MT64::value_t> values(nb_elements, 0);
+    values.resize(nb_elements);
     generate(begin(values), end(values), [&] { return mt.next(); });
 
     if (asc) sort(begin(values), end(values));
     else sort(begin(values), end(values), std::greater<MT64::value_t>());
 
-    stringstream ss;
+    ss.str(string());
     copy(begin(values), end(values), ostream_iterator<MT64::value_t>(ss));
     auto hash = sha256(ss.str());
     return hash.compare(0, target.size(), target) == 0;
@@ -196,7 +197,9 @@ int multithreaded_task(int start, int max_tries_per_thread, TaskCreator task_cre
 extern "C" {
     void unit_test() {
         MT64 mt;
-        if (!test_list_sort_nonce(mt, "433e", "9cc5a925757e626b1febbdf62c1643d5bab6473c0a960ad823ab742e18560977", 100, false, 15236)) {
+        vector<MT64::value_t> values;
+        stringstream ss;
+        if (!test_list_sort_nonce(mt, "433e", "9cc5a925757e626b1febbdf62c1643d5bab6473c0a960ad823ab742e18560977", 100, false, 15236, values, ss)) {
             class unittest_failed_list_sort{};
             throw unittest_failed_list_sort{};
         }
@@ -207,7 +210,6 @@ extern "C" {
         Grid grid;
         Row empty_row;
         Path path;
-        stringstream ss;
         if (!test_shortest_path_nonce(mt, "8fe4", "9551d9f2b91df3381938ddc8ee97dcf0663113ceacd8f766912aa6bcf35bb18b", 80, 25, 21723, came_from, cost_so_far, grid, empty_row, path, ss)) {
             throw unittest_failed_shortest_path{};
         }
@@ -235,12 +237,14 @@ extern "C" {
             int nb_elements;
             bool asc;
             MT64 mt;
+            vector<MT64::value_t> values;
+            stringstream ss;
 
             sort_task(const string& target, const char* previous_hash, int nb_elements, bool asc)
-                : target{target}, previous_hash{previous_hash}, nb_elements{nb_elements}, asc{asc}, mt{} {}
+                : target{target}, previous_hash{previous_hash}, nb_elements{nb_elements}, asc{asc}, mt{}, values{}, ss{} {}
 
             bool operator()(int nonce) {
-                return test_list_sort_nonce(mt, target, previous_hash, nb_elements, asc, nonce);
+                return test_list_sort_nonce(mt, target, previous_hash, nb_elements, asc, nonce, values, ss);
             }
         };
 
