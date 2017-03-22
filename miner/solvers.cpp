@@ -75,7 +75,7 @@ Position random_position(MT64& mt, int grid_size) {
         const int column = mt.next() % grid_size;
         if (row == 0 || row+1 == grid_size ||
             column == 0 || column+1 == grid_size) continue;
-        return Position(row, column);
+        return std::move(Position(row, column));
     }
 }
 
@@ -86,14 +86,14 @@ Position random_end_position(MT64& mt, int grid_size, Position start) {
         if (row == 0 || row+1 == grid_size ||
             column == 0 || column+1 == grid_size) continue;
         if (row == start.first && column == start.second) continue;
-        return Position(row, column);
+        return std::move(Position(row, column));
     }
 }
 
 Position random_unchecked_position(MT64& mt, int grid_size) {
     const auto row = mt.next() % grid_size;
     const auto column = mt.next() % grid_size;
-    return Position(row, column);
+    return std::move(Position(row, column));
 }
 
 Grid random_grid(MT64& mt, int nb_blockers, int grid_size,
@@ -112,18 +112,20 @@ Grid random_grid(MT64& mt, int nb_blockers, int grid_size,
         }
     }
 
-    return grid;
+    return std::move(grid);
 }
 
 bool test_shortest_path_nonce(MT64& mt, const string& target,
                               const char* previous_hash, int nb_blockers,
-                              int grid_size, int nonce) {
+                              int grid_size, int nonce,
+                              CameFrom& came_from, CostSoFar& cost_so_far) {
     feed_prng(mt, previous_hash, nonce);
 
     const auto start = random_position(mt, grid_size);
     const auto end = random_end_position(mt, grid_size, start);
     const auto grid = random_grid(mt, nb_blockers, grid_size, start, end);
-    const auto path = shortest_path(grid, start, end, true);
+    const auto path = shortest_path(grid, start, end, true,
+                                    came_from, cost_so_far);
     if (path.empty()) return false;
     stringstream ss;
     for_each(path.begin(), path.end(), [&ss](Position pos) {
@@ -136,7 +138,8 @@ bool test_shortest_path_nonce(MT64& mt, const string& target,
     // is allowed to go in directions that increase the heuristic but give
     // the same path) => verify that dijkstra (no heuristic) gives the same
     // path.
-    const auto dijkstra_path = shortest_path(grid, start, end, false);
+    const auto dijkstra_path = shortest_path(grid, start, end, false,
+                                             came_from, cost_so_far);
 
     cout << "Potential path found. Checking Dijkstra." << endl;
     return dijkstra_path == path;
@@ -200,16 +203,18 @@ extern "C" {
         }
 
         class unittest_failed_shortest_path{};
-        if (!test_shortest_path_nonce(mt, "8fe4", "9551d9f2b91df3381938ddc8ee97dcf0663113ceacd8f766912aa6bcf35bb18b", 80, 25, 21723)) {
+        CameFrom came_from;
+        CostSoFar cost_so_far;
+        if (!test_shortest_path_nonce(mt, "8fe4", "9551d9f2b91df3381938ddc8ee97dcf0663113ceacd8f766912aa6bcf35bb18b", 80, 25, 21723, came_from, cost_so_far)) {
             throw unittest_failed_shortest_path{};
         }
-        if (!test_shortest_path_nonce(mt, "12f7", "8fe4ed64fc0397a07dfe3a270d7e148aeb9fbac7c54d1eb870d0f379c0f4c211", 80, 25, 95148)) {
+        if (!test_shortest_path_nonce(mt, "12f7", "8fe4ed64fc0397a07dfe3a270d7e148aeb9fbac7c54d1eb870d0f379c0f4c211", 80, 25, 95148, came_from, cost_so_far)) {
             throw unittest_failed_shortest_path{};
         }
-        if (test_shortest_path_nonce(mt, "7134", "72c59bc893cc40dd9101500b558bdd35e612e935339bd017eb69802391d0d038", 80, 25, 114393)) {
+        if (test_shortest_path_nonce(mt, "7134", "72c59bc893cc40dd9101500b558bdd35e612e935339bd017eb69802391d0d038", 80, 25, 114393, came_from, cost_so_far)) {
             throw unittest_failed_shortest_path{};
         }
-        if (test_shortest_path_nonce(mt, "3b6b", "228178a3b76322dd6e7c6329921a83c7d6a5b20dbf00002eca98db00054acf44", 80, 25, 124097)) {
+        if (test_shortest_path_nonce(mt, "3b6b", "228178a3b76322dd6e7c6329921a83c7d6a5b20dbf00002eca98db00054acf44", 80, 25, 124097, came_from, cost_so_far)) {
             throw unittest_failed_shortest_path{};
         }
 
@@ -257,16 +262,18 @@ extern "C" {
             int nb_blockers;
             int grid_size;
             MT64 mt;
+            CameFrom came_from;
+            CostSoFar cost_so_far;
 
             pathfinding_task(const string& target,
                              const char* previous_hash,
                              int nb_blockers, int grid_size)
                 : target{target}, previous_hash{previous_hash},
                 nb_blockers{nb_blockers},
-                grid_size{grid_size}, mt{} {}
+                grid_size{grid_size}, mt{}, came_from{}, cost_so_far{} {}
 
             bool operator()(int nonce) {
-                return test_shortest_path_nonce(mt, target, previous_hash, nb_blockers, grid_size, nonce);
+                return test_shortest_path_nonce(mt, target, previous_hash, nb_blockers, grid_size, nonce, came_from, cost_so_far);
             }
         };
 

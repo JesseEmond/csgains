@@ -22,6 +22,7 @@ const Cell End = 'e';
 
 using Path = std::vector<Position>;
 using CameFrom = std::vector<std::pair<Position, Position>>;
+using CostSoFar = std::vector<std::pair<Position, int>>;
 using HeapNode = std::pair<int, Position>;
 
 inline int heuristic(Position a, Position b) {
@@ -44,15 +45,16 @@ Path reconstruct_path(Position start, Position end, const CameFrom& came_from) {
 }
 
 const std::array<Position, 4> directions = { Position(1,0), Position(-1,0),
-                                        Position(0,1), Position(0,-1) };
+                                             Position(0,1), Position(0,-1) };
 Path shortest_path(const Grid& grid, Position start, Position end,
-                   bool use_heuristic) {
+                   bool use_heuristic,
+                   CameFrom& came_from, CostSoFar& cost_so_far) {
     static const auto frontier_comparator = std::greater_equal<HeapNode>();
     std::vector<HeapNode> frontier;
     frontier.emplace_back(0, start);
 
-    CameFrom came_from;
-    std::vector<std::pair<Position, int>> cost_so_far;
+    came_from.clear();
+    cost_so_far.clear();
 
     came_from.emplace_back(start, start);
     cost_so_far.emplace_back(start, 0);
