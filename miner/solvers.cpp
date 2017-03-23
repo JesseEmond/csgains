@@ -306,7 +306,7 @@ extern "C" {
             }
         };
 
-        const int step_size_per_thread = 50000;
+        const int step_size_per_thread = 7000;
         const int step_size = step_size_per_thread * n_threads;
         const int max_steps = 7;
         const nonce_t start_nonce = random_nonce();
