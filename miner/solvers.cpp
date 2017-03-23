@@ -10,11 +10,22 @@
 #include <thread>
 #include <atomic>
 #include <random>
+#include <cstdint>
 
 #include "sha256.h"
 #include "grid.h"
 
 using namespace std;
+
+using nonce_t = int64_t;
+using MT64 = std::mt19937_64;
+using value_t = MT64::result_type;
+
+nonce_t random_nonce() {
+    static MT64 r;
+    nonce_t n = r();
+    return n >= 0 ? n : -n;
+}
 
 template <typename T>
 T swap_endian(T u) {
@@ -38,9 +49,6 @@ string sha256(const string& src) {
     return h(src);
 }
 
-using MT64 = std::mt19937_64;
-using value_t = MT64::result_type;
-
 value_t seed_from_hash(const string& hash) {
     string prefix(begin(hash), next(begin(hash), 16)); // 8 bytes
     stringstream converter(prefix);
@@ -49,7 +57,7 @@ value_t seed_from_hash(const string& hash) {
     return swap_endian(seed);
 }
 
-void feed_prng(MT64& mt, const char* previous, int nonce) {
+void feed_prng(MT64& mt, const char* previous, nonce_t nonce) {
     stringstream ss;
     ss << previous << nonce;
     string hash = sha256(ss.str());
@@ -59,7 +67,7 @@ void feed_prng(MT64& mt, const char* previous, int nonce) {
 
 bool test_list_sort_nonce(MT64& mt, const string& target,
                           const char* previous_hash, int nb_elements,
-                          bool asc, int nonce, vector<value_t>& values,
+                          bool asc, nonce_t nonce, vector<value_t>& values,
                           stringstream& ss) {
     feed_prng(mt, previous_hash, nonce);
     values.resize(nb_elements);
@@ -120,7 +128,7 @@ void random_grid(MT64& mt, int nb_blockers, int grid_size,
 
 bool test_shortest_path_nonce(MT64& mt, const string& target,
                               const char* previous_hash, int nb_blockers,
-                              int grid_size, int nonce,
+                              int grid_size, nonce_t nonce,
                               CameFrom& came_from, CostSoFar& cost_so_far,
                               Grid& grid, Row& empty_row, Path& path,
                               stringstream& ss) {
@@ -151,22 +159,22 @@ bool test_shortest_path_nonce(MT64& mt, const string& target,
 
 const auto n_threads = max(thread::hardware_concurrency(), 1u);
 template <class TaskCreator>
-int multithreaded_task(int start, int max_tries_per_thread, TaskCreator task_creator) {
+nonce_t multithreaded_task(nonce_t start, int max_tries_per_thread, TaskCreator task_creator) {
     cout << "Launching " << n_threads << " threads." << endl;
-    vector<future<int>> threads;
+    vector<future<nonce_t>> threads;
     threads.reserve(n_threads);
     const auto before = chrono::steady_clock::now();
     const int workload = max_tries_per_thread;
     atomic_bool done(false);
 
     for (unsigned int i = 0; i < n_threads; ++i) {
-        const int my_start = start + workload * i;
-        const int my_end = my_start + workload;
-        threads.push_back(async(launch::async, [i, my_start, my_end, workload, &task_creator, &done] {
+        const nonce_t my_start = start + workload * i;
+        const nonce_t my_end = my_start + workload;
+        threads.push_back(async(launch::async, [i, my_start, my_end, workload, &task_creator, &done] () -> nonce_t {
             auto task = task_creator();
-            for (int nonce = my_start; nonce < my_end; ++nonce) {
+            for (nonce_t nonce = my_start; nonce < my_end; ++nonce) {
                 // try a couple of times before checking the atomic flag
-                for (int j = 0; j < 4000; ++j, ++nonce) {
+                for (nonce_t j = 0; j < 1000; ++j, ++nonce) {
                     if (task(nonce)) {
                         done.store(true);
                         cout << "Thread " << i << " found nonce " << nonce << endl;
@@ -182,13 +190,13 @@ int multithreaded_task(int start, int max_tries_per_thread, TaskCreator task_cre
             return -workload;
         }));
     }
-    vector<int> results;
+    vector<nonce_t> results;
     transform(begin(threads), end(threads), back_inserter(results), [] (auto &thread) { return thread.get(); });
     const auto found_nonce = *max_element(begin(results), end(results));
 
     const auto after = chrono::steady_clock::now();
     const auto diff = chrono::duration_cast<chrono::duration<float>>(after - before);
-    int explored = 0;
+    nonce_t explored = 0;
     for (unsigned int i = 0; i < n_threads; ++i) {
         explored += results[i] >= 0 ? results[i] - workload * i - start : -results[i];
     }
@@ -230,10 +238,10 @@ extern "C" {
         cout << "Unit tests passed." << endl;
     }
 
-    int solve_list_sort(const char* target_prefix,
-                        const char* previous_hash,
-                        int nb_elements,
-                        bool asc) {
+    nonce_t solve_list_sort(const char* target_prefix,
+                            const char* previous_hash,
+                            int nb_elements,
+                            bool asc) {
         string target(target_prefix);
         struct sort_task {
             string target;
@@ -247,25 +255,29 @@ extern "C" {
             sort_task(const string& target, const char* previous_hash, int nb_elements, bool asc)
                 : target{target}, previous_hash{previous_hash}, nb_elements{nb_elements}, asc{asc}, mt{}, values{}, ss{} {}
 
-            bool operator()(int nonce) {
+            bool operator()(nonce_t nonce) {
                 return test_list_sort_nonce(mt, target, previous_hash, nb_elements, asc, nonce, values, ss);
             }
         };
 
         const int step_size_per_thread = 5000;
-        for (int nonce = 0; nonce < 99999999; nonce += step_size_per_thread * n_threads) {
+        const int step_size = step_size_per_thread * n_threads;
+        const int max_steps = 7;
+        const nonce_t start_nonce = random_nonce();
+        const nonce_t end_nonce = start_nonce + max_steps * step_size;
+        for (nonce_t nonce = start_nonce; nonce < end_nonce; nonce += step_size) {
             cout << "Start nonce: " << nonce << endl;
-            int found_nonce = multithreaded_task(nonce, step_size_per_thread,
-                                                 [&] { return sort_task{target, previous_hash, nb_elements, asc}; });
+            nonce_t found_nonce = multithreaded_task(nonce, step_size_per_thread,
+                                                     [&] { return sort_task{target, previous_hash, nb_elements, asc}; });
             if (found_nonce >= 0) return found_nonce;
         }
         return 0;
     }
 
-    int solve_shortest_path(const char* target_prefix,
-                            const char* previous_hash,
-                            int nb_blockers,
-                            int grid_size) {
+    nonce_t solve_shortest_path(const char* target_prefix,
+                                const char* previous_hash,
+                                int nb_blockers,
+                                int grid_size) {
         string target(target_prefix);
         struct pathfinding_task {
             string target;
@@ -288,16 +300,20 @@ extern "C" {
                 grid_size{grid_size}, mt{}, came_from{}, cost_so_far{},
                 grid{}, empty_row{}, path{}, ss{} {}
 
-            bool operator()(int nonce) {
+            bool operator()(nonce_t nonce) {
                 return test_shortest_path_nonce(mt, target, previous_hash, nb_blockers, grid_size, nonce,
                                                 came_from, cost_so_far, grid, empty_row, path, ss);
             }
         };
 
-        const int step_size_per_thread = 5000;
-        for (int nonce = 0; nonce < 99999999; nonce += step_size_per_thread * n_threads) {
+        const int step_size_per_thread = 50000;
+        const int step_size = step_size_per_thread * n_threads;
+        const int max_steps = 7;
+        const nonce_t start_nonce = random_nonce();
+        const nonce_t end_nonce = start_nonce + max_steps * step_size;
+        for (nonce_t nonce = start_nonce; nonce < end_nonce; nonce += step_size) {
             cout << "Start nonce: " << nonce << endl;
-            int found_nonce = multithreaded_task(nonce,
+            nonce_t found_nonce = multithreaded_task(nonce,
                                                  step_size_per_thread,
                                                  [&] {
                                                  return pathfinding_task{target, previous_hash, nb_blockers, grid_size};

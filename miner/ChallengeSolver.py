@@ -43,11 +43,10 @@ class SortedListSolver(ChallengeSolver):
     def solve(self, parameters, hash_prefix, previous_hash):
         nb_elements = parameters['nb_elements']
 
-        #nonce = random.randint(0, 99999999)
-        nonce = solve_sorted_list(hash_prefix, previous_hash, nb_elements)
-        print("Verifying nonce %d..." % nonce)
-
         while self.alive:
+            nonce = solve_sorted_list(hash_prefix, previous_hash, nb_elements)
+            print("Verifying nonce %d..." % nonce)
+
             self.feed_prng(previous_hash, nonce)
 
             elements = []
@@ -86,11 +85,10 @@ class ReverseSortedListSolver(ChallengeSolver):
         nb_elements = parameters['nb_elements']
         print("List: %d elems" % nb_elements)
 
-        #nonce = random.randint(0, 99999999)
-        nonce = solve_reverse_sorted_list(hash_prefix, previous_hash, nb_elements)
-        print("Verifying nonce %d..." % nonce)
-
         while self.alive:
+            nonce = solve_reverse_sorted_list(hash_prefix, previous_hash, nb_elements)
+            print("Verifying nonce %d..." % nonce)
+
             self.feed_prng(previous_hash, nonce)
 
             elements = []
@@ -134,12 +132,11 @@ class ShortestPathSolver(ChallengeSolver):
         print("Hash prefix: %s" % hash_prefix)
         print("Previous hash: %s" % previous_hash)
 
-        # nonce = random.randint(0, 9999999999)
-        nonce = solve_shortest_path(hash_prefix, previous_hash,
-                                   nb_blockers, grid_size)
-        print("Verifying nonce %d..." % nonce)
-
         while self.alive:
+            nonce = solve_shortest_path(hash_prefix, previous_hash,
+                                       nb_blockers, grid_size)
+            print("Verifying nonce %d..." % nonce)
+
             self.feed_prng(previous_hash, nonce)
 
             grid = Grid.Grid(grid_size)
