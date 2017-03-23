@@ -9,9 +9,9 @@
 #include <future>
 #include <thread>
 #include <atomic>
+#include <random>
 
 #include "sha256.h"
-#include "mt.h"
 #include "grid.h"
 
 using namespace std;
@@ -38,10 +38,13 @@ string sha256(const string& src) {
     return h(src);
 }
 
-MT64::seed_t seed_from_hash(const string& hash) {
+using MT64 = std::mt19937_64;
+using value_t = MT64::result_type;
+
+value_t seed_from_hash(const string& hash) {
     string prefix(begin(hash), next(begin(hash), 16)); // 8 bytes
     stringstream converter(prefix);
-    MT64::seed_t seed;
+    value_t seed;
     converter >> std::hex >> seed;
     return swap_endian(seed);
 }
@@ -56,25 +59,25 @@ void feed_prng(MT64& mt, const char* previous, int nonce) {
 
 bool test_list_sort_nonce(MT64& mt, const string& target,
                           const char* previous_hash, int nb_elements,
-                          bool asc, int nonce, vector<MT64::value_t>& values,
+                          bool asc, int nonce, vector<value_t>& values,
                           stringstream& ss) {
     feed_prng(mt, previous_hash, nonce);
     values.resize(nb_elements);
-    generate(begin(values), end(values), [&] { return mt.next(); });
+    generate(begin(values), end(values), [&] { return mt(); });
 
     if (asc) sort(begin(values), end(values));
-    else sort(begin(values), end(values), std::greater<MT64::value_t>());
+    else sort(begin(values), end(values), std::greater<value_t>());
 
     ss.str(string());
-    copy(begin(values), end(values), ostream_iterator<MT64::value_t>(ss));
+    copy(begin(values), end(values), ostream_iterator<value_t>(ss));
     auto hash = sha256(ss.str());
     return hash.compare(0, target.size(), target) == 0;
 }
 
 Position random_position(MT64& mt, int grid_size) {
     while (true) {
-        const int row = mt.next() % grid_size;
-        const int column = mt.next() % grid_size;
+        const int row = mt() % grid_size;
+        const int column = mt() % grid_size;
         if (row == 0 || row+1 == grid_size ||
             column == 0 || column+1 == grid_size) continue;
         return std::move(Position(row, column));
@@ -83,8 +86,8 @@ Position random_position(MT64& mt, int grid_size) {
 
 Position random_end_position(MT64& mt, int grid_size, Position start) {
     while (true) {
-        const int row = mt.next() % grid_size;
-        const int column = mt.next() % grid_size;
+        const int row = mt() % grid_size;
+        const int column = mt() % grid_size;
         if (row == 0 || row+1 == grid_size ||
             column == 0 || column+1 == grid_size) continue;
         if (row == start.first && column == start.second) continue;
@@ -93,8 +96,8 @@ Position random_end_position(MT64& mt, int grid_size, Position start) {
 }
 
 Position random_unchecked_position(MT64& mt, int grid_size) {
-    const auto row = mt.next() % grid_size;
-    const auto column = mt.next() % grid_size;
+    const auto row = mt() % grid_size;
+    const auto column = mt() % grid_size;
     return std::move(Position(row, column));
 }
 
@@ -198,7 +201,7 @@ int multithreaded_task(int start, int max_tries_per_thread, TaskCreator task_cre
 extern "C" {
     void unit_test() {
         MT64 mt;
-        vector<MT64::value_t> values;
+        vector<value_t> values;
         stringstream ss;
         if (!test_list_sort_nonce(mt, "433e", "9cc5a925757e626b1febbdf62c1643d5bab6473c0a960ad823ab742e18560977", 100, false, 15236, values, ss)) {
             class unittest_failed_list_sort{};
@@ -238,7 +241,7 @@ extern "C" {
             int nb_elements;
             bool asc;
             MT64 mt;
-            vector<MT64::value_t> values;
+            vector<value_t> values;
             stringstream ss;
 
             sort_task(const string& target, const char* previous_hash, int nb_elements, bool asc)
