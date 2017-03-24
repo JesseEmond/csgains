@@ -5,7 +5,7 @@ import MinerClient
 import asyncio
 
 keys_dir = ""
-wallet_name = "SherbyPapapapala"
+wallet_name = "Sherbrooke"
 
 ia = len(sys.argv)
 i = 1
