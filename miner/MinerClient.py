@@ -20,7 +20,7 @@ class MinerClient(BaseClient):
         self.solving_thread = None
 
     async def client_loop(self):
-        register_wallet = False
+        register_wallet = True
         pub_path = "key.pub"
         priv_path = "key.priv"
 
