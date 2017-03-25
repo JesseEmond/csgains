@@ -22,5 +22,10 @@ while i < ia:
             i += 1
     i += 1
 
-mc = MinerClient.MinerClient(keys_dir, "cscoins.2017.csgames.org", wallet_name)
-asyncio.get_event_loop().run_until_complete(mc.client_loop())
+while True:
+    try:
+        mc = MinerClient.MinerClient(keys_dir, "cscoins.2017.csgames.org", wallet_name)
+        asyncio.get_event_loop().run_until_complete(mc.client_loop())
+    except:
+        print("CRASHED! Restarting...")
+        pass
