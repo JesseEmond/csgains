@@ -17,6 +17,8 @@
 
 using namespace std;
 
+// using a signed int here because we return a negative value to indicate how
+// many values were tested (to measure speed)
 using nonce_t = int64_t;
 using MT64 = std::mt19937_64;
 using value_t = MT64::result_type;
@@ -82,31 +84,28 @@ bool test_list_sort_nonce(MT64& mt, const string& target,
     return hash.compare(0, target.size(), target) == 0;
 }
 
-Position random_position(MT64& mt, int grid_size) {
+Position random_unchecked_position(MT64& mt, int grid_size) {
+    const auto row = mt() % grid_size;
+    const auto column = mt() % grid_size;
+    return std::move(Position(row, column));
+}
+
+Position random_start_position(MT64& mt, int grid_size) {
     while (true) {
-        const int row = mt() % grid_size;
-        const int column = mt() % grid_size;
-        if (row == 0 || row+1 == grid_size ||
-            column == 0 || column+1 == grid_size) continue;
-        return std::move(Position(row, column));
+        const auto start = random_unchecked_position(mt, grid_size);
+        // the sides are blockers -- we implicitly handle them here
+        if (start.first == 0 || start.first+1 == grid_size ||
+            start.second == 0 || start.second+1 == grid_size) continue;
+        return std::move(start);
     }
 }
 
 Position random_end_position(MT64& mt, int grid_size, Position start) {
     while (true) {
-        const int row = mt() % grid_size;
-        const int column = mt() % grid_size;
-        if (row == 0 || row+1 == grid_size ||
-            column == 0 || column+1 == grid_size) continue;
-        if (row == start.first && column == start.second) continue;
-        return std::move(Position(row, column));
+        const auto end = random_start_position(mt, grid_size);
+        if (start == end) continue;
+        return std::move(end);
     }
-}
-
-Position random_unchecked_position(MT64& mt, int grid_size) {
-    const auto row = mt() % grid_size;
-    const auto column = mt() % grid_size;
-    return std::move(Position(row, column));
 }
 
 
@@ -134,11 +133,14 @@ bool test_shortest_path_nonce(MT64& mt, const string& target,
                               stringstream& ss) {
     feed_prng(mt, previous_hash, nonce);
 
-    const auto start = random_position(mt, grid_size);
+    const auto start = random_start_position(mt, grid_size);
     const auto end = random_end_position(mt, grid_size, start);
     random_grid(mt, nb_blockers, grid_size, start, end, grid, empty_row);
     shortest_path(grid, start, end, true, came_from, cost_so_far, path);
-    if (path.empty()) return false;
+    if (path.empty()) {
+        cerr << "No path. Pathfinding bug?" << endl;
+        return false;
+    }
     ss.str(string());
     for_each(path.begin(), path.end(), [&ss](Position pos) {
         ss << pos.first << pos.second;
@@ -148,8 +150,13 @@ bool test_shortest_path_nonce(MT64& mt, const string& target,
 
     // we might be unlucky and have A* path != dijkstra path (e.g. dijkstra
     // is allowed to go in directions that increase the heuristic but give
-    // the same path) => verify that dijkstra (no heuristic) gives the same
-    // path.
+    // the same path), for example:
+    // Dijkstra:     A*:
+    // pppppp          ppp
+    // s   #e       sppp#e
+    // As a result, we verify that dijkstra (no heuristic) gives the same
+    // path (the few times where we get a mismatch are worth the 4-5x speedup
+    // from using A*).
     cout << "Potential path found. Checking Dijkstra." << endl;
     const auto original_path = path;
     shortest_path(grid, start, end, false, came_from, cost_so_far, path);
@@ -173,7 +180,8 @@ nonce_t multithreaded_task(nonce_t start, int max_tries_per_thread, TaskCreator 
         threads.push_back(async(launch::async, [i, my_start, my_end, workload, &task_creator, &done] () -> nonce_t {
             auto task = task_creator();
             for (nonce_t nonce = my_start; nonce < my_end; ++nonce) {
-                // try a couple of times before checking the atomic flag
+                // try a couple of times before checking the atomic flag (doesn't
+                // hurt to try extra nonces, while checking the atomic flag has a cost).
                 for (nonce_t j = 0; j < 1000; ++j, ++nonce) {
                     if (task(nonce)) {
                         done.store(true);
@@ -182,7 +190,7 @@ nonce_t multithreaded_task(nonce_t start, int max_tries_per_thread, TaskCreator 
                     }
                 }
                 if (done) {
-                    // return how many nonces were checked
+                    // return how many nonces were checked -- used to measure speed
                     return -(nonce - my_start);
                 }
             }
@@ -194,6 +202,7 @@ nonce_t multithreaded_task(nonce_t start, int max_tries_per_thread, TaskCreator 
     transform(begin(threads), end(threads), back_inserter(results), [] (auto &thread) { return thread.get(); });
     const auto found_nonce = *max_element(begin(results), end(results));
 
+    // speed measurements
     const auto after = chrono::steady_clock::now();
     const auto diff = chrono::duration_cast<chrono::duration<float>>(after - before);
     nonce_t explored = 0;
@@ -243,6 +252,8 @@ extern "C" {
                             int nb_elements,
                             bool asc) {
         string target(target_prefix);
+
+        // use a functor to store some state that will be reused (containers)
         struct sort_task {
             string target;
             const char* previous_hash;
@@ -260,9 +271,9 @@ extern "C" {
             }
         };
 
-        const int step_size_per_thread = 5000;
+        const int step_size_per_thread = 5000; // how many nonces to try before showing the speed
         const int step_size = step_size_per_thread * n_threads;
-        const int max_steps = 7;
+        const int max_steps = 7; // how many steps to do before returning the Python world
         const nonce_t start_nonce = random_nonce();
         const nonce_t end_nonce = start_nonce + max_steps * step_size;
         for (nonce_t nonce = start_nonce; nonce < end_nonce; nonce += step_size) {
@@ -279,6 +290,8 @@ extern "C" {
                                 int nb_blockers,
                                 int grid_size) {
         string target(target_prefix);
+
+        // use a functor to save some state (reuse containers)
         struct pathfinding_task {
             string target;
             const char* previous_hash;
@@ -306,6 +319,7 @@ extern "C" {
             }
         };
 
+        // copy-paste from the sort task... ideally should be refactored.
         const int step_size_per_thread = 7000;
         const int step_size = step_size_per_thread * n_threads;
         const int max_steps = 7;
