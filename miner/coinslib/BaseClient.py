@@ -11,6 +11,8 @@ from Crypto.Signature import PKCS1_v1_5
 
 class BaseClient:
     def __init__(self, hostname="localhost", port=8989, ssl=True):
+        print(hostname)
+        print(ssl)
         self.hostname = hostname
         self.port = port
         self.ssl = ssl
