@@ -7,3 +7,9 @@ Simple miner implementation for the CS Coins
  * Websockets
  * asyncio
  * pycrypto
+
+
+### Compiling
+```
+./cpp/compile.sh
+```
