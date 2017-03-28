@@ -1,6 +1,6 @@
 from ctypes import cdll
 import ctypes
-lib = cdll.LoadLibrary('./libsolvers.so')
+lib = cdll.LoadLibrary('./cpp/libsolvers.so')
 lib.solve_list_sort.restype = ctypes.c_uint64
 lib.solve_shortest_path.restype = ctypes.c_uint64
 

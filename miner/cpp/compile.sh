@@ -1,9 +1,10 @@
 #!/bin/sh
 set -e
+cd cpp
 echo "Compiling..."
 options='-c -g -Wall -fPIC -lto -Ofast -std=c++17 -DNDEBUG'
 # all_options='-fprofile-generate'
-all_options='-fprofile-use -fprofile-correction'
+all_options='-fprofile-use -fprofile-correction' # correction because the profile gets broken multiple threads
 g++ $options $all_options solvers.cpp -o solvers.o
 g++ $options $all_options sha256.cpp -o sha256.o
 echo "Linking..."
