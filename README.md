@@ -1,5 +1,5 @@
 # csgains
-University of Sherbrooke's winning miner of [CSCoins](https://github.com/csgames/cscoins) for the [CSGames 2017](http://2017.csgames.org/) competition.
+University of Sherbrooke's winning miner of [CSCoins](https://github.com/csgames/cscoins) for the [CSGames 2017](http://2017.csgames.org/) competition, which was a competition that began before the event and lasted the whole week-end.
 
 ## Challenge
 *(skip this section if you know how the CSCoins miners work)*
